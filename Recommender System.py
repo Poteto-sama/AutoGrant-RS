@@ -25,8 +25,17 @@ with open('scholarship_index.json', 'r', encoding='utf-8') as file:
 with open('autogrant.userdata.single.json', 'r', encoding='utf-8') as file:
     user_data_list = json.load(file)
 
+with open('technical_terms.json', 'r', encoding='utf-8') as file:
+    document_terms = json.load(file)
+
 stop_words = set(stopwords.words('english'))
 lemmatizer = WordNetLemmatizer()
+
+degree_weight = 1.2
+stream_weight = 0.8
+country_weight = 1.3
+bio_weight = 0.1
+document_terms_weight = 0.08
 
 for user_data in user_data_list:
     user_bio = user_data.get('user_bio', '')
@@ -34,9 +43,9 @@ for user_data in user_data_list:
     user_stream = user_data.get('stream_choice', '')
     user_country = user_data.get('country_choice', '')
 
-    user_degree_tokens = user_degree.lower().split()  # Split degree into tokens
-    user_stream_tokens = user_stream.lower().split()  # Split stream into tokens
-    user_country_tokens = user_country.lower().split()  # Split country into tokens
+    user_degree_tokens = user_degree.lower().split()
+    user_stream_tokens = user_stream.lower().split()
+    user_country_tokens = user_country.lower().split()
     user_bio_tokens = preprocess(user_bio)
     scholarship_scores = {}
 
@@ -45,12 +54,15 @@ for user_data in user_data_list:
         documents = token_data['documents']
 
         relevance_score = 0
-
-        for user_param_tokens in [set(user_degree_tokens), set(user_stream_tokens), set(user_country_tokens), set(user_bio_tokens)]:
+        for user_param_tokens, weight in [(set(user_degree_tokens), degree_weight),
+                                          (set(user_stream_tokens), stream_weight),
+                                          (set(user_country_tokens), country_weight),
+                                          (set(user_bio_tokens), bio_weight),
+                                          (set(document_terms), document_terms_weight)]:
             for user_token in user_param_tokens:
                 similarity_score = 1 - (distance(token, user_token) / max(len(token), len(user_token)))
-                if similarity_score > 0.48:
-                    relevance_score += similarity_score
+                if similarity_score > 0.75:
+                    relevance_score += similarity_score * weight
 
         for scholarship_id in documents:
             scholarship_scores[scholarship_id] = scholarship_scores.get(scholarship_id, 0) + relevance_score
